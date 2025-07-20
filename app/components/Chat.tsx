@@ -1,18 +1,39 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useChat } from '@ai-sdk/react';
-import Markdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import { Tips } from './Tips';
+import { EyeIcon, EyeOff, Files, Expand, Shrink } from 'lucide-react';
+import { Button } from './ui/button';
+import { PromptForm } from './PromptForm';
+import { Artifact } from './Artifact';
+import { ArtifactProps } from '../types';
+import { ModeToggle } from './mode-toggle';
 
-export function Chat() {
+// 定义Chat组件的属性类型
+interface ChatProps {
+  initialMessages?: Array<{
+    id: string;
+    role: 'user' | 'assistant';
+    content: string;
+  }>;
+  previewContent?: ArtifactProps;
+}
+
+export function Chat({ initialMessages = [], previewContent: initialPreviewContent }: ChatProps) {
     const [input, setInput] = useState('');
     const [error, setError] = useState<Error | null>(null);
+    const [previewContent, setPreviewContent] = useState<ArtifactProps>(initialPreviewContent || { content: '', language: 'markdown' });
+    const [previewOpen, setPreviewOpen] = useState(true);
+    const [copied, setCopied] = useState(false);
+    const [expandedMessages, setExpandedMessages] = useState<Set<number>>(new Set());
+    const [chatVisible, setChatVisible] = useState(true);
+    const [showPrompts, setShowPrompts] = useState(false);
 
     // 使用 useChat hook，并传入 initialMessages
     const { data, append, messages, status } = useChat({
-        api: '/api/research',
+        api: '/api/chat',
+        initialMessages,
         onError: (err) => {
             console.error("聊天请求出错:", err);
-            // 添加更详细的错误日志
             if (err instanceof Error) {
                 console.error("错误详情:", {
                     message: err.message,
@@ -25,9 +46,12 @@ export function Chat() {
             setError(err instanceof Error ? err : new Error(String(err)));
         },
         onFinish: (message) => {
-            console.log("聊天响应完成，消息详情:", {
-                message
+            console.log("聊天响应完成，包含思考过程:", {
+                message,
+                data,
+                reasoning: message.reasoning
             });
+            setPreviewContent({ content: message.content, language: 'markdown' });
         }
     });
 
@@ -60,84 +84,186 @@ export function Chat() {
     };
 
     // 处理表单提交
-    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        if (input.trim() && status !== 'streaming' && status !== 'submitted') {
-            sendMessage(input);
-            setInput('');
+    const handleSubmit = async (value: string) => {
+        console.log("准备发送消息:", value);
+        if (value.trim() && status !== 'streaming' && status !== 'submitted') {
+            try {
+                await sendMessage(value);
+            } catch (err) {
+                console.error("处理提交时出错:", err);
+            }
         }
     };
 
     // 判断是否正在加载
     const isLoading = status === 'streaming' || status === 'submitted';
 
+    const copyToClipboard = (text: string) => {
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    useEffect(() => {
+        console.log("Header heights updated:", {
+            previewHeader: document.querySelector('.preview-header')?.clientHeight,
+            chatHeader: document.querySelector('header')?.clientHeight
+        });
+    }, [previewOpen]);
+
+    // 处理快捷提示词选择
+    const handlePromptSelect = (promptContent: string) => {
+        console.log("选择提示词:", promptContent);
+        setInput(promptContent);
+        setShowPrompts(false);
+    };
+
     return (
-        <div className="flex flex-col h-screen">
-            <div className="flex-1 overflow-y-auto p-4">
-                <div className="max-w-3xl mx-auto space-y-4">
-                    {messages.length === 0 && (
-                        <div className="text-center text-gray-500 my-8">
-                            开始一个新的对话吧！
+        <div className="flex h-screen bg-background">
+            {/* 左侧预览面板 */}
+            {previewOpen && (
+                <div className={`${chatVisible ? 'w-3/5' : 'w-full'} border-r border flex flex-col transition-all duration-300 ease-in-out`}>
+                    <div className="flex items-center justify-between p-1 border-b border">
+                        <div className="flex items-center gap-2 mx-4 font-bold">
+                            <span>Markdown Renderer</span>
                         </div>
-                    )}
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant='outline'
+                                onClick={() => copyToClipboard(previewContent.content)}
+                                title="复制"
+                            >
+                                <Files className={`h-5 w-5 ${copied ? "text-green-500" : ""}`} />
+                            </Button>
+                            <Button
+                                variant='outline'
+                                onClick={() => setChatVisible(!chatVisible)}
+                                title={chatVisible ? "最大化预览" : "恢复布局"}
+                            >
+                                {chatVisible ? (
+                                    <Expand className="h-5 w-5" />
+                                ) : (
+                                    <Shrink className="h-5 w-5" />
+                                )}
+                            </Button>
+                        </div>
+                    </div>
+                    <div className="flex-1 overflow-auto px-4 py-1">
+                        <Artifact language={previewContent.language} content={previewContent.content} />
+                    </div>
+                </div>
+            )}
 
-                    {messages.map((message, i) => (
-                        <div key={i} className={`flex flex-col ${message.role === 'user' ? 'items-end' : 'items-start'}`}>
-                            <div className="mb-1 text-xs text-gray-500">
-                                {message.role === 'user' ? '你' : 'AI助手'}
-                            </div>
-                            {message.role === 'assistant' && (
-                                <details className="mb-2 w-full max-w-[85%]">
-                                    <summary className="cursor-pointer text-sm hover:text-gray-700">
-                                        显示思考
-                                    </summary>
-                                    <div className="mt-2 rounded-lg border px-4 py-2 text-xs text-gray-600">
-                                        {data && data.map((item, index) => (
-                                            item?.toString()
-                                        ))}
-                                        {message.reasoning}
-                                    </div>
-                                </details>
+            {/* 右侧聊天区域 */}
+            {chatVisible && (
+                <div
+                    className=
+                        "flex flex-col flex-1 transition-all duration-200 ease-in-out">
+                    {/* 头部 */}
+                    <header className="flex items-center justify-between p-1 border-b border">
+                        <div>
+                            {
+                                <Button
+                                    variant='outline'
+                                    onClick={() => setPreviewOpen(!previewOpen)}
+                                    title={previewOpen ? "隐藏预览" : "显示预览"}
+                                >
+                                    {previewOpen ? (
+                                        <EyeOff className="h-5 w-5" />
+                                    ) : (
+                                        <EyeIcon className="h-5 w-5" />
+                                    )}
+                                </Button>
+                            }
+                        </div>
+                        <ModeToggle />
+                    </header>
+
+                    {/* 消息区域 */}
+                    <div className="flex-1 overflow-y-auto p-4">
+                        <div className="max-w-3xl mx-auto space-y-4">
+                            {messages.length === 0 && (
+                                <div className="text-center text-gray-500 my-8">
+                                    开始一个新的对话吧！
+                                </div>
                             )}
-                            <div className={`rounded-lg px-4 py-2 max-w-[85%] ${message.role === 'user'
-                                    ? 'bg-blue-500 text-white'
-                                    : 'border'
-                                }`}>
-                                <Markdown remarkPlugins={[remarkGfm]}>
-                                    {message.content}
-                                </Markdown>
-                            </div>
-                        </div>
-                    ))}
 
-                    {error && (
-                        <div className="flex justify-center">
-                            <div className="rounded-lg px-4 py-2 bg-red-500 text-white">
-                                错误: {error.message}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
+                            {messages.map((message, i) => (
+                                <div key={i} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`rounded-lg overflow-x-auto  w-4/5 ${
+                                        message.role === 'user'
+                                            ? 'bg-gray-400 text-white p-2'
+                                            : ''
+                                    }`}>
+                                        <div className="mb-1 text-xs">
+                                            {message.role === 'user' ? '你' : 'AI助手'}
+                                        </div>
+                                        
+                                        {message.role === 'assistant' && (message.reasoning || (data && data.length > 0)) && (
+                                            <div className="text-sm text-slate-400">
+                                                <div 
+                                                    className="flex items-center cursor-pointer rounded"
+                                                    onClick={() => {
+                                                        setExpandedMessages(prev => {
+                                                            const newSet = new Set(prev);
+                                                            if (newSet.has(i)) {
+                                                                newSet.delete(i);
+                                                            } else {
+                                                                newSet.add(i);
+                                                            }
+                                                            return newSet;
+                                                        });
+                                                    }}
+                                                >
+                                                    <span className="mr-2">
+                                                        {expandedMessages.has(i) ? '▼' : '▶'}
+                                                    </span>
+                                                    <span className="font-medium">思考过程</span>
+                                                </div>
+                                                
+                                                {expandedMessages.has(i) && (
+                                                    <div className="ml-1 p-2 border-l border-gray-300">
+                                                        {data && data.length > 0 && (
+                                                            <div className="mb-2">
+                                                                {data.map((item, index) => (
+                                                                    <div key={index} className="mb-1">
+                                                                        {item?.toString()}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                        {message.reasoning}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                        
+                                        <Tips content={message.content} setPreviewContent={setPreviewContent}/>
+                                    </div>
+                                </div>
+                            ))}
 
-            <form onSubmit={handleSubmit} className="p-4 border-t">
-                <div className="max-w-3xl mx-auto flex gap-4">
-                    <input
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        placeholder="输入消息..."
-                        className="flex-1 rounded-lg px-4 py-2 border"
-                        disabled={isLoading}
-                    />
-                    <button
-                        type="submit"
-                        disabled={isLoading || !input.trim()}
-                        className="bg-blue-500 text-white px-4 py-2 rounded-lg disabled:opacity-50"
-                    >
-                        {isLoading ? "发送中..." : "发送"}
-                    </button>
+                            {error && (
+                                <div className="flex justify-center">
+                                    <div className="rounded-lg  bg-red-500 text-white">
+                                        错误: {error.message}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* 输入区域 */}
+                    <div>
+                        <PromptForm
+                            input={input}
+                            setInput={setInput}
+                            onSubmit={handleSubmit}
+                            isLoading={isLoading}
+                        />
+                    </div>
                 </div>
-            </form>
+            )}
         </div>
     );
 }

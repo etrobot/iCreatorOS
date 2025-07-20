@@ -1,5 +1,5 @@
 import type { MetaFunction } from "@remix-run/node";
-import { Chat } from "~/components/Chat";
+import { WorkspacePage } from "~/pages/WorkspacePage";
 
 export const meta: MetaFunction = () => {
   return [
@@ -8,6 +8,11 @@ export const meta: MetaFunction = () => {
   ];
 };
 
+export const handle = {
+  title: "Workspace",
+};
+
 export default function Index() {
-  return <Chat />;
+
+  return <WorkspacePage />;
 }
