@@ -17,7 +17,6 @@ import {
   Theme,
 } from "remix-themes";
 import { themeSessionResolver } from "~/sessions.server";
-import { useEffect } from "react";
 import { Settings, Briefcase } from "lucide-react";
 
 import {
@@ -101,13 +100,13 @@ export default function App() {
       <Document theme={data.theme}>
         <SidebarProvider>
           <Sidebar>
-            <SidebarHeader className="p-4">
+            <SidebarHeader className="px-4 py-2">
               <div className="flex items-center justify-between">
               <h1 className="text-xl font-bold">Creator OS</h1>
               <ModeToggle />
               </div>
             </SidebarHeader>
-            <SidebarContent className="p-4">
+            <SidebarContent className="py-6 px-2">
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
@@ -129,12 +128,14 @@ export default function App() {
             </SidebarContent>
             <SidebarFooter>{/* Footer content */}</SidebarFooter>
           </Sidebar>
-          <SidebarInset>
-            <div className="flex items-center gap-4 p-4">
+          <SidebarInset className="p-2">
+            <header className="flex justify-between items-center w-full mb-2 fixed">
+              <div>
               <SidebarTrigger />
-              <h1 className="text-2xl font-bold">{title}</h1>
-            </div>
-            <main className="p-4">
+              <span className="text-2xl font-bold">{title}</span>
+              </div>
+            </header>
+            <main className="mt-12">
               <Outlet />
             </main>
           </SidebarInset>

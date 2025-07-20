@@ -31,7 +31,7 @@ export function WorkspacePage() {
             return (
               <Card
                 key={idx}
-                className="border-gray-200 dark:border-gray-700 shadow-none lg:w-[300px] w-[260px] "
+                className="border-gray-200 dark:border-gray-700 shadow-none lg:w-[300px] sm:w-[260px] min-w-[220px]"
               >
                 <CardHeader className="pb-2 pt-3 px-3">
                   <div className="flex items-center justify-between">
