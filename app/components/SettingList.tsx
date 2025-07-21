@@ -8,6 +8,7 @@ type SettingItem = {
   label: string;
   type?: 'text' | 'password';
   icon?: string;
+  category: 'social' | 'llm';
   value?: string;
 };
 
