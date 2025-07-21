@@ -11,7 +11,13 @@ const provider = createOpenAICompatible({
 export async function action({ request }: { request: Request }) {
   try {
     const body = await request.json();
-    const { messages } = body;
+    const { messages, llmConfig } = body;
+
+    const provider = createOpenAICompatible({
+      name: 'openai-compatible-provider',
+      apiKey: llmConfig.apiKey || process.env.OPENAI_API_KEY || 'YOUR_OPENROUTER_API_KEY',
+      baseURL: llmConfig.baseUrl || process.env.OPENAI_BASE_URL || 'https://api.siliconflow.cn/v1',
+    });
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(
@@ -26,7 +32,7 @@ export async function action({ request }: { request: Request }) {
     // 打印接收到的消息，帮助调试
     console.log("接收到的消息:", JSON.stringify(messages, null, 2));
 
-    const modelName ='deepseek-ai/DeepSeek-R1-Distill-Qwen-14B';
+    const modelName = llmConfig.model || 'deepseek-ai/DeepSeek-R1-Distill-Qwen-14B';
     
     console.log("使用模型:", modelName);
     

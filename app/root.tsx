@@ -1,38 +1,14 @@
-import {
-  Links,
-  Meta,
-  Outlet,
-  Scripts,
-  ScrollRestoration,
-  useLoaderData,
-  Link,
-  useMatches,
-  type UIMatch,
-} from "@remix-run/react";
+import { Links, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData, Link, useMatches, type UIMatch } from "@remix-run/react";
 import type { LinksFunction, LoaderFunction } from "@remix-run/node";
-import {
-  ThemeProvider,
-  useTheme,
-  PreventFlashOnWrongTheme,
-  Theme,
-} from "remix-themes";
+import {ThemeProvider, useTheme, PreventFlashOnWrongTheme, Theme} from "remix-themes";
 import { themeSessionResolver } from "~/sessions.server";
 import { Settings, Briefcase } from "lucide-react";
-
-import {
-  SidebarProvider,
-  Sidebar,
-  SidebarHeader,
-  SidebarTrigger,
-  SidebarContent,
-  SidebarFooter,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-} from "~/components/ui/sidebar";
+import { useState, useEffect } from "react";
+import { socialLinkConfig } from "~/pages/SettingsPage";
+import { SettingDialog } from "~/components/setting-dialog";
+import {SidebarProvider, Sidebar, SidebarHeader, SidebarTrigger, SidebarContent, SidebarFooter, SidebarInset, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarGroup, SidebarGroupLabel, SidebarGroupContent} from "~/components/ui/sidebar";
 import "./tailwind.css";
-import { ModeToggle } from "./components/mode-toggle";
+import { ModeToggle } from "~/components/mode-toggle";
 
 // Define a type for the handle property
 interface Handle {
@@ -91,6 +67,33 @@ function Document({
 export default function App() {
   const data = useLoaderData<{ theme: Theme | null }>();
   const matches = useMatches() as UIMatch<unknown, Handle>[];
+  const [socialLinks, setSocialLinks] = useState<Record<string, string>>({});
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedLink, setSelectedLink] = useState<(typeof socialLinkConfig)[number] & { url?: string } | null>(null);
+
+  useEffect(() => {
+    try {
+      const savedLinks = localStorage.getItem('socialLinks');
+      if (savedLinks) {
+        setSocialLinks(JSON.parse(savedLinks));
+      }
+    } catch (error) {
+      console.error("Failed to parse social links from localStorage", error);
+    }
+  }, []);
+
+  const handleLinkClick = (link: (typeof socialLinkConfig)[number]) => {
+    setSelectedLink({ ...link, url: socialLinks[link.id] || '' });
+    setIsDialogOpen(true);
+  };
+
+  const handleSaveLink = (url: string) => {
+    if (selectedLink) {
+      const newLinks = { ...socialLinks, [selectedLink.id]: url };
+      setSocialLinks(newLinks);
+      localStorage.setItem('socialLinks', JSON.stringify(newLinks));
+    }
+  };
 
   const currentRoute = matches[matches.length - 1];
   const title = currentRoute?.handle?.title || "CreatorOS";
@@ -106,7 +109,7 @@ export default function App() {
               <ModeToggle />
               </div>
             </SidebarHeader>
-            <SidebarContent className="py-6 px-2">
+            <SidebarContent className="py-6 px-2 flex flex-col">
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
@@ -125,6 +128,25 @@ export default function App() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>
+              <div className="mt-auto mb-3">
+              <SidebarGroup className="border-t">
+                <SidebarGroupLabel className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
+                  Media Links
+                </SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu className="space-y-1 px-3">
+                    {socialLinkConfig.map((link) => (
+                      <SidebarMenuItem key={link.id} onClick={() => handleLinkClick(link)}>
+                        <SidebarMenuButton className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-muted-foreground hover:bg-accent transition-colors text-sm">
+                          <span className="text-sm">{link.icon}</span>
+                          <span>{link.name}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            </div>
             </SidebarContent>
             <SidebarFooter>{/* Footer content */}</SidebarFooter>
           </Sidebar>
@@ -140,6 +162,20 @@ export default function App() {
             </main>
           </SidebarInset>
         </SidebarProvider>
+        {selectedLink && (
+        <SettingDialog
+          isOpen={isDialogOpen}
+          onClose={() => setIsDialogOpen(false)}
+          onSave={handleSaveLink}
+          setting={{
+            id: selectedLink.id,
+            name: selectedLink.name,
+            value: selectedLink.url,
+            placeholder: selectedLink.placeholder,
+            label: 'URL'
+          }}
+        />
+      )}
       </Document>
     </ThemeProvider>
   );

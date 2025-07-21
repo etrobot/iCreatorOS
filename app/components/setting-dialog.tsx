@@ -11,22 +11,29 @@ import { Button } from "~/components/ui/button";
 import { Label } from "~/components/ui/label";
 import { useState, useEffect } from "react";
 
-interface EditSocialLinkDialogProps {
+interface SettingDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (url: string) => void;
-  link: { id: string; name: string; icon: string, url?: string };
+  onSave: (value: string) => void;
+  setting: {
+    id: string;
+    name: string;
+    value?: string;
+    placeholder?: string;
+    label: string;
+    type?: 'text' | 'password';
+  };
 }
 
-export function EditSocialLinkDialog({ isOpen, onClose, onSave, link }: EditSocialLinkDialogProps) {
-  const [url, setUrl] = useState(link.url || "");
+export function SettingDialog({ isOpen, onClose, onSave, setting }: SettingDialogProps) {
+  const [value, setValue] = useState(setting.value || "");
 
   useEffect(() => {
-    setUrl(link.url || '');
-  }, [link.url]);
+    setValue(setting.value || '');
+  }, [setting.value]);
 
   const handleSave = () => {
-    onSave(url);
+    onSave(value);
     onClose();
   };
 
@@ -34,15 +41,16 @@ export function EditSocialLinkDialog({ isOpen, onClose, onSave, link }: EditSoci
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit {link.name} Link</DialogTitle>
+          <DialogTitle>Edit {setting.name}</DialogTitle>
         </DialogHeader>
         <div>
-          <Label htmlFor="url">URL</Label>
+          <Label htmlFor={setting.id}>{setting.label}</Label>
           <Input
-            id="url"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder={`Enter your ${link.name} URL`}
+            id={setting.id}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder={setting.placeholder || `Enter your ${setting.name}`}
+            type={setting.type || 'text'}
           />
         </div>
         <DialogFooter>

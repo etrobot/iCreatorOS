@@ -32,6 +32,9 @@ export function Chat({ initialMessages = [], previewContent: initialPreviewConte
     const { data, append, messages, status } = useChat({
         api: '/api/chat',
         initialMessages,
+        body: {
+            llmConfig: JSON.parse(localStorage.getItem('llmConfig') || '{}')
+        },
         onError: (err) => {
             console.error("聊天请求出错:", err);
             if (err instanceof Error) {
