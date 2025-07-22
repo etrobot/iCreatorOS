@@ -1,7 +1,7 @@
 import { Links, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData, Link, useMatches, type UIMatch } from "@remix-run/react";
-import type { LinksFunction, LoaderFunction } from "@remix-run/node";
+import type { LinksFunction, LoaderFunction } from "@remix-run/cloudflare";
 import {ThemeProvider, useTheme, PreventFlashOnWrongTheme, Theme} from "remix-themes";
-import { themeSessionResolver } from "~/sessions.server";
+import { createThemeSessionResolverWithEnv } from "~/sessions.server";
 import { Settings, Briefcase } from "lucide-react";
 import { useState, useEffect } from "react";
 import { socialLinkConfig } from "~/pages/SettingsPage";
@@ -16,8 +16,10 @@ interface Handle {
 }
 
 // 添加loader获取主题
-export const loader: LoaderFunction = async ({ request }) => {
-  const { getTheme } = await themeSessionResolver(request);
+export const loader: LoaderFunction = async ({ request, context }) => {
+  console.log("context in loader:", context);
+  const env = context?.env || process.env;
+  const { getTheme } = await createThemeSessionResolverWithEnv(env)(request);
   return {
     theme: getTheme(),
   };

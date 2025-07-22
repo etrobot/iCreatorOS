@@ -1,6 +1,8 @@
 /* eslint-disable */
 import { json } from "@remix-run/cloudflare";
-import { getSession } from "~/services/auth.server";
+import { createAuthServices } from "~/services/auth.server";
+
+const { getSession } = createAuthServices(process.env);
 
 export async function loader({ request }: { request: Request }) {
   // console.log('Auth check - cookies:', request.headers.get("Cookie"));
